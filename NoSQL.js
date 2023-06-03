@@ -85,12 +85,50 @@ db.restaurants.aggregate([
 
 
 //Extraer el review más antiguo. Nota, la fecha está en formato unix timestamp.
-db.restaurantsOpening.aggregate([
-  { $unwind: "$reviews" },
-  { $sort: { "reviews.date": 1 } },
-  { $limit: 1 },
-  { $project: { _id: 0, oldestReview: "$reviews" } }
+db.restaurants.aggregate([
+  { $unwind: "$grades" },
+  {
+    $addFields: {
+      "grades.date": {
+        $let: {
+          vars: {
+            dateArray: { $objectToArray: "$grades.date" }
+          },
+          in: { $arrayElemAt: ["$$dateArray.v", 0] }
+        }
+      }
+    }
+  },
+  { $sort: { "grades.date": 1 } },
+  {
+    $group: {
+      _id: null,
+      "oldestReview": {
+        $first: {
+          "name": "$name",
+          "grade": "$grades.grade",
+          "score": "$grades.score",
+          "date": "$grades.date"
+        }
+      }
+    }
+  },
+  {
+    $project: {
+      "_id": 0,
+      "oldestReview.name": 1,
+      "oldestReview.grade": 1,
+      "oldestReview.score": 1,
+      "oldestReview.date": {
+        $dateToString: {
+          format: "%Y-%m-%d %H:%M:%S",
+          date: { $toDate: "$oldestReview.date" }
+        }
+      }
+    }
+  }
 ])
+
 
 
 //Consultas en Restaurant Opening
